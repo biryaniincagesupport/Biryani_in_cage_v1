@@ -42,7 +42,7 @@ export default function Navbar() {
                 Biryani <span className="italic text-saffron-300">In Cage</span>
               </div>
               <div className="hidden text-[10px] uppercase tracking-[0.3em] text-saffron-400/70 sm:block">
-                Deoghar · since 2022
+                Deoghar · since 2021
               </div>
             </div>
           </Link>

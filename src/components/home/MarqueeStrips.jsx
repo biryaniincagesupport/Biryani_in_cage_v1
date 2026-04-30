@@ -15,7 +15,7 @@ export default function MarqueeStrips() {
           'Multicuisine',
           'Open 12 PM – 11 PM',
           'Bulk orders welcome',
-          'Since 2022',
+          'Since 2021',
         ]}
       />
     </section>

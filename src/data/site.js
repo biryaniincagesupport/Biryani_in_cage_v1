@@ -10,12 +10,13 @@ export const SITE = {
   tagline: 'Caged in flavour. Set free in every bite.',
   shortPitch:
     "Deoghar's most loved themed biryani restaurant. Multicuisine veg & non-veg, served inside our signature cage booths.",
-  founded: 2022,
+  founded: 2021,
   city: 'Deoghar',
   state: 'Jharkhand',
-  address: 'Deoghar, Jharkhand — 814112',
+  address:
+    'Parmeshwar Dayal Road, Barmasia, In front of Oxygen Fitness Gym, Deoghar, Jharkhand 814112',
   hours: '12:00 PM – 11:00 PM · Open all days',
-  phone: env.VITE_PHONE_NUMBER || '+91 99999 99999',
+  phone: env.VITE_PHONE_NUMBER || '+91 79036 87499',
   email: 'hello@biryaniincage.in',
   links: {
     zomato: env.VITE_ZOMATO_URL || 'https://www.zomato.com/',
@@ -29,7 +30,7 @@ export const SITE = {
 };
 
 export const STATS = [
-  { label: 'Years serving Deoghar', value: '3+', sub: 'since 2022' },
+  { label: 'Years serving Deoghar', value: '5+', sub: 'since 2021' },
   { label: 'Monthly Google searches', value: '8,000+', sub: 'on Maps' },
   { label: 'Biryani rank · Zomato', value: '#1', sub: 'in Deoghar' },
   { label: 'Biryani rank · Swiggy', value: '#2', sub: 'in Deoghar' },
@@ -37,16 +38,16 @@ export const STATS = [
 
 export const STORY = [
   {
-    year: '2022',
+    year: '2021',
     title: 'Born in a cloud kitchen',
     body:
       "We started small — a single kitchen, one biryani recipe, and an obsession with getting the dum right. Within months, our orders quietly outgrew the kitchen.",
   },
   {
-    year: '2023',
+    year: '2022',
     title: 'The Cage opens',
     body:
-      "We turned that obsession into a place — black cage booths, brick walls, neon, flowers. A theme that felt like nowhere else in town. People came for the look. They stayed for the biryani.",
+      "We turned that obsession into a place — a jail-themed restaurant with black cage booths, brick walls, neon, and flowers. A vibe that felt like nowhere else in Deoghar. People came for the look. They stayed for the biryani.",
   },
   {
     year: '2024',
