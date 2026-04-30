@@ -17,6 +17,9 @@ export const SITE = {
     'Parmeshwar Dayal Road, Barmasia, In front of Oxygen Fitness Gym, Deoghar, Jharkhand 814112',
   hours: '12:00 PM – 11:00 PM · Open all days',
   phone: env.VITE_PHONE_NUMBER || '+91 79036 87499',
+  // Admin WhatsApp — receives every checkout's order ticket via wa.me
+  // deep-link. Owner: change via VITE_WHATSAPP_NUMBER for production.
+  adminWhatsapp: env.VITE_WHATSAPP_NUMBER || '+91 70043 69269',
   email: 'hello@biryaniincage.in',
   links: {
     zomato: env.VITE_ZOMATO_URL || 'https://www.zomato.com/',

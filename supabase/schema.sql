@@ -60,3 +60,40 @@ create policy "anon can read available menu"
   for select
   to anon
   using (is_available = true);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Orders — placed from the website checkout. Guest-friendly (no auth needed).
+-- Status enum kept as text for flexibility:
+--   pending → confirmed → preparing → out_for_delivery → delivered | cancelled
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.orders (
+  id                   bigserial   primary key,
+  customer_name        text        not null,
+  customer_phone       text        not null,
+  customer_email       text,
+  delivery_address     jsonb       not null,
+  items                jsonb       not null,
+  subtotal             integer     not null,
+  delivery_fee         integer     not null default 0,
+  gst_amount           integer     not null default 0,
+  total                integer     not null,
+  payment_method       text        not null default 'cod',
+  status               text        not null default 'pending',
+  special_instructions text,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
+);
+
+create index if not exists orders_status_idx     on public.orders (status, created_at desc);
+create index if not exists orders_phone_idx      on public.orders (customer_phone);
+create index if not exists orders_created_at_idx on public.orders (created_at desc);
+
+alter table public.orders enable row level security;
+
+-- Allow anonymous order placement; reads remain locked (owner uses service role).
+drop policy if exists "anon can insert orders" on public.orders;
+create policy "anon can insert orders"
+  on public.orders
+  for insert
+  to anon
+  with check (true);
