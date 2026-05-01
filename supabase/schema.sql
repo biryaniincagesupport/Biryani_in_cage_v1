@@ -97,3 +97,58 @@ create policy "anon can insert orders"
   for insert
   to anon
   with check (true);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Admin access
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Email allowlist for the admin dashboard. Add the owner's email(s) here.
+-- Keep this list short — anyone listed can read/update every order and read
+-- every enquiry through the front-end admin UI.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(auth.email(), '') in (
+    'mayank29deo@gmail.com'
+    -- 'owner@biryaniincage.in'
+  );
+$$;
+
+-- Auto-bump updated_at on order updates.
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists orders_touch on public.orders;
+create trigger orders_touch
+  before update on public.orders
+  for each row execute function public.touch_updated_at();
+
+-- Admins can read every order.
+drop policy if exists "admins can read orders" on public.orders;
+create policy "admins can read orders"
+  on public.orders for select
+  to authenticated
+  using (public.is_admin());
+
+-- Admins can flip status / append notes.
+drop policy if exists "admins can update orders" on public.orders;
+create policy "admins can update orders"
+  on public.orders for update
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- Admins can read every enquiry.
+drop policy if exists "admins can read enquiries" on public.enquiries;
+create policy "admins can read enquiries"
+  on public.enquiries for select
+  to authenticated
+  using (public.is_admin());

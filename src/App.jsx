@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import FloatingCTAs from '@/components/ui/FloatingCTAs';
@@ -7,13 +7,21 @@ import PageShell from '@/components/layout/PageShell';
 import CartFab from '@/components/cart/CartFab';
 import CartDrawer from '@/components/cart/CartDrawer';
 
-// Lazy-loaded routes — keeps the initial JS bundle small.
+// Public pages — lazy-loaded.
 const Home     = lazy(() => import('@/pages/Home'));
 const Menu     = lazy(() => import('@/pages/Menu'));
 const About    = lazy(() => import('@/pages/About'));
 const Contact  = lazy(() => import('@/pages/Contact'));
 const Checkout = lazy(() => import('@/pages/Checkout'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
+
+// Admin — separate chunk; only loaded when /admin is hit.
+const AdminLogin      = lazy(() => import('@/pages/admin/AdminLogin'));
+const AdminLayout     = lazy(() => import('@/pages/admin/AdminLayout'));
+const AdminGuard      = lazy(() => import('@/pages/admin/AdminGuard'));
+const AdminDashboard  = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminOrders     = lazy(() => import('@/pages/admin/AdminOrders'));
+const AdminCustomers  = lazy(() => import('@/pages/admin/AdminCustomers'));
 
 function RouteFallback() {
   return (
@@ -27,26 +35,49 @@ function RouteFallback() {
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false);
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith('/admin');
 
   return (
     <>
-      <Navbar />
+      {!isAdmin && <Navbar />}
       <PageShell>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/menu" element={<Menu />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/checkout" element={<Checkout />} />
+            {/* Public */}
+            <Route path="/"          element={<Home />} />
+            <Route path="/menu"      element={<Menu />} />
+            <Route path="/about"     element={<About />} />
+            <Route path="/contact"   element={<Contact />} />
+            <Route path="/checkout"  element={<Checkout />} />
+
+            {/* Admin */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminGuard>
+                  <AdminLayout />
+                </AdminGuard>
+              }
+            >
+              <Route index            element={<AdminDashboard />} />
+              <Route path="orders"    element={<AdminOrders />} />
+              <Route path="customers" element={<AdminCustomers />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </PageShell>
-      <Footer />
-      <FloatingCTAs />
-      <CartFab onOpen={() => setCartOpen(true)} />
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      {!isAdmin && (
+        <>
+          <Footer />
+          <FloatingCTAs />
+          <CartFab onOpen={() => setCartOpen(true)} />
+          <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        </>
+      )}
     </>
   );
 }
