@@ -13,6 +13,7 @@ const Menu     = lazy(() => import('@/pages/Menu'));
 const About    = lazy(() => import('@/pages/About'));
 const Contact  = lazy(() => import('@/pages/Contact'));
 const Checkout = lazy(() => import('@/pages/Checkout'));
+const Account  = lazy(() => import('@/pages/Account'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 // Admin — separate chunk; only loaded when /admin is hit.
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="/about"     element={<About />} />
             <Route path="/contact"   element={<Contact />} />
             <Route path="/checkout"  element={<Checkout />} />
+            <Route path="/account"   element={<Account />} />
 
             {/* Admin */}
             <Route path="/admin/login" element={<AdminLogin />} />

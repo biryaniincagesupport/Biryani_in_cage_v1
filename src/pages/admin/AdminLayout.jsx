@@ -7,7 +7,7 @@ import {
   LogOut,
   ExternalLink,
 } from 'lucide-react';
-import { useAdmin } from '@/state/AdminContext';
+import { useAuth as useAdmin } from '@/state/AuthContext';
 import { cn } from '@/utils/cn';
 
 const NAV_ITEMS = [

@@ -33,6 +33,7 @@ export async function placeOrder(payload) {
     payment_method:       'cod',
     status:               'pending',
     special_instructions: payload.specialInstructions || null,
+    user_id:              payload.userId || null,
   };
 
   if (!isSupabaseConfigured) {

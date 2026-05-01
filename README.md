@@ -79,9 +79,18 @@ All env vars are optional — without them, the site renders with sensible place
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the SQL editor, paste and run [`supabase/schema.sql`](supabase/schema.sql). This creates:
-   - `enquiries` — accepts anonymous inserts (contact form, bulk orders, reservations); read access is closed.
+   - `enquiries` — accepts anonymous inserts (contact form, bulk orders, reservations); admin-only read.
    - `menu_items` — anonymous read of available items; future-proofing if the menu ever needs to be edited from a CMS instead of the codebase.
-3. Drop the project URL + anon key into `.env`.
+   - `orders` — accepts anonymous inserts (guest checkout) and authenticated reads of own rows; admin-only read/update of all rows.
+   - `profiles` — auto-created on signup; users read/update their own row only.
+   - `addresses` — saved-address book; users CRUD their own only.
+   - `is_admin()` Postgres function — RLS gate for the admin dashboard. **Edit the email allowlist before applying.**
+3. **Enable Google sign-in** (optional but recommended). In Supabase → **Authentication → Providers → Google**, paste the Client ID and Client Secret from [Google Cloud Console → OAuth credentials](https://console.cloud.google.com/apis/credentials):
+   - In Google Console, create an OAuth 2.0 Client ID (type "Web application").
+   - Authorised redirect URI: `https://<your-project>.supabase.co/auth/v1/callback`.
+   - Paste the Client ID/Secret back into Supabase, save, toggle the provider on.
+4. **Configure auth redirect URLs.** Supabase → **Authentication → URL Configuration** → add `http://localhost:5173/**` and `https://yourdomain.in/**` to **Redirect URLs**. Set the **Site URL** to your production domain.
+5. Drop the project URL + anon key into `.env` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Add your admin emails to `VITE_ADMIN_EMAILS` (comma-separated).
 
 ## Updating the menu
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Loader2, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
-import { useAdmin } from '@/state/AdminContext';
+import { useAuth as useAdmin } from '@/state/AuthContext';
 import CageBars from '@/components/ui/CageBars';
 
 export default function AdminLogin() {

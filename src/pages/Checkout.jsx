@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, AlertCircle, Wallet } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Wallet, User } from 'lucide-react';
 import { useCart } from '@/state/CartContext';
+import { useAuth } from '@/state/AuthContext';
 import { computeTotals } from '@/utils/cart';
 import { placeOrder } from '@/api/orders';
 import { openWhatsappTicket, buildWhatsappLink } from '@/services/whatsapp';
+import { listAddresses, addAddress, fetchProfile } from '@/api/profile';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import PaymentMethod from '@/components/checkout/PaymentMethod';
 import OrderSuccess from '@/components/checkout/OrderSuccess';
+import SavedAddresses from '@/components/checkout/SavedAddresses';
+import AuthModal from '@/components/auth/AuthModal';
 import { fadeUp } from '@/utils/motion';
 
 const DRAFT_KEY = 'bic-checkout-draft-v1';
@@ -27,12 +31,17 @@ const initial = {
 
 export default function CheckoutPage() {
   const { items, isEmpty, clear } = useCart();
+  const auth = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [state, setState] = useState({ status: 'idle', message: '' });
   const [success, setSuccess] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [saveAddressFlag, setSaveAddressFlag] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   // Hydrate draft from localStorage on mount.
   useEffect(() => {
@@ -43,6 +52,44 @@ export default function CheckoutPage() {
       /* ignore */
     }
   }, []);
+
+  // When the user signs in, prefill form from profile + load saved addresses.
+  useEffect(() => {
+    if (!auth.isAuthed || !auth.user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [p, addr] = await Promise.all([
+          fetchProfile(auth.user.id),
+          listAddresses(auth.user.id),
+        ]);
+        if (cancelled) return;
+        setSavedAddresses(addr);
+        // Prefill name/phone/email from profile if the form is empty.
+        setForm((f) => ({
+          ...f,
+          name:  f.name  || p?.full_name || '',
+          phone: f.phone || p?.phone     || '',
+          email: f.email || auth.email   || '',
+        }));
+        // Auto-pick the default address (or the most recent) on first load.
+        const def = addr.find((a) => a.is_default) ?? addr[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          setForm((f) => ({
+            ...f,
+            line1:    def.line1,
+            landmark: def.landmark || '',
+            area:     def.area || '',
+            pincode:  def.pincode,
+          }));
+        }
+      } catch {
+        /* RLS / network — fall back to manual entry */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth.isAuthed, auth.user?.id, auth.email]);
 
   // Persist draft (debounced not necessary — small object).
   useEffect(() => {
@@ -90,6 +137,30 @@ export default function CheckoutPage() {
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
+    if (Object.keys(errors).length) setErrors({});
+    // Editing the address fields detaches the saved-address selection
+    // so we don't accidentally re-save someone's existing address.
+    if (selectedAddressId &&
+        ('line1' in patch || 'landmark' in patch || 'area' in patch || 'pincode' in patch)) {
+      setSelectedAddressId(null);
+    }
+  };
+
+  const onSelectSavedAddress = (addr) => {
+    if (!addr) {
+      setSelectedAddressId(null);
+      setForm((f) => ({ ...f, line1: '', landmark: '', area: '', pincode: '' }));
+      return;
+    }
+    setSelectedAddressId(addr.id);
+    setSaveAddressFlag(false);
+    setForm((f) => ({
+      ...f,
+      line1:    addr.line1,
+      landmark: addr.landmark || '',
+      area:     addr.area || '',
+      pincode:  addr.pincode,
+    }));
     if (Object.keys(errors).length) setErrors({});
   };
 
@@ -142,7 +213,29 @@ export default function CheckoutPage() {
 
     setState({ status: 'loading', message: '' });
     try {
-      const res = await placeOrder({ ...form, items, totals });
+      const res = await placeOrder({
+        ...form,
+        items,
+        totals,
+        userId: auth.user?.id ?? null,
+      });
+
+      // Save the typed address to the user's address book if they ticked
+      // the box (only when signed in and not using an existing saved one).
+      if (auth.isAuthed && saveAddressFlag && !selectedAddressId) {
+        try {
+          await addAddress(auth.user.id, {
+            label:    null,
+            line1:    form.line1,
+            landmark: form.landmark || null,
+            area:     form.area || null,
+            pincode:  form.pincode,
+            is_default: savedAddresses.length === 0,
+          });
+        } catch {
+          /* non-blocking — order's already placed */
+        }
+      }
 
       // Rebuild link with the persisted orderId so the fallback button
       // sends the same payload but tagged with the real reference.
@@ -190,6 +283,30 @@ export default function CheckoutPage() {
           </p>
         </motion.div>
 
+        {!auth.isAuthed && (
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-saffron-400/20 bg-saffron-400/5 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <User size={16} className="mt-0.5 text-saffron-300" />
+              <div>
+                <p className="text-sm text-bone">
+                  Sign in to <strong className="text-saffron-200">load saved addresses</strong> and{' '}
+                  <strong className="text-saffron-200">track your orders</strong>.
+                </p>
+                <p className="mt-0.5 text-[11px] uppercase tracking-[0.2em] text-bone/45">
+                  Optional · guest checkout still works
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="btn-ghost !px-4 !py-2 text-xs"
+            >
+              Sign in
+            </button>
+          </div>
+        )}
+
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
           <form onSubmit={onSubmit} className="space-y-8">
             <Section title="Who's eating">
@@ -230,6 +347,18 @@ export default function CheckoutPage() {
             </Section>
 
             <Section title="Where to deliver">
+              {auth.isAuthed && savedAddresses.length > 0 && (
+                <div className="mb-5">
+                  <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-saffron-400/80">
+                    Saved addresses
+                  </p>
+                  <SavedAddresses
+                    addresses={savedAddresses}
+                    selectedId={selectedAddressId}
+                    onSelect={onSelectSavedAddress}
+                  />
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="House / Building / Street *" className="sm:col-span-2" error={errors.line1}>
                   <input
@@ -282,6 +411,18 @@ export default function CheckoutPage() {
                   />
                 </Field>
               </div>
+
+              {auth.isAuthed && !selectedAddressId && form.line1 && (
+                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 text-xs uppercase tracking-[0.2em] text-bone/65">
+                  <input
+                    type="checkbox"
+                    checked={saveAddressFlag}
+                    onChange={(e) => setSaveAddressFlag(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-saffron-400"
+                  />
+                  Save this address for next time
+                </label>
+              )}
             </Section>
 
             <Section title="How you're paying">
@@ -322,6 +463,14 @@ export default function CheckoutPage() {
           <OrderSummary />
         </div>
       </section>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        redirectPath="/checkout"
+        title="Sign in to checkout faster"
+        subtitle="Your saved address and history will load automatically."
+      />
     </main>
   );
 }

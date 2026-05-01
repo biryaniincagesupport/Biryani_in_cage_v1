@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAdmin } from '@/state/AdminContext';
+import { useAuth as useAdmin } from '@/state/AuthContext';
 
 // Wraps the admin area. Bounces unauth'd visitors to /admin/login and
 // shows a "not allowed" notice for signed-in users who aren't on the

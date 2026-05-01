@@ -152,3 +152,128 @@ create policy "admins can read enquiries"
   on public.enquiries for select
   to authenticated
   using (public.is_admin());
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Customer profiles & saved addresses
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- profiles — one row per signed-in customer (auth.users.id is the PK).
+-- Auto-created by trigger after sign-up; users can edit their own row.
+create table if not exists public.profiles (
+  id           uuid        primary key references auth.users(id) on delete cascade,
+  full_name    text,
+  phone        text,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists profiles_phone_idx on public.profiles (phone);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "users read own profile" on public.profiles;
+create policy "users read own profile"
+  on public.profiles for select to authenticated
+  using (auth.uid() = id);
+
+drop policy if exists "users update own profile" on public.profiles;
+create policy "users update own profile"
+  on public.profiles for update to authenticated
+  using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists "users insert own profile" on public.profiles;
+create policy "users insert own profile"
+  on public.profiles for insert to authenticated
+  with check (auth.uid() = id);
+
+drop policy if exists "admins read profiles" on public.profiles;
+create policy "admins read profiles"
+  on public.profiles for select to authenticated
+  using (public.is_admin());
+
+-- Auto-create a profile row on signup. Pulls full_name from raw_user_meta_data
+-- (Google fills "full_name" or "name", magic-link sign-up has neither).
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name')
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Bump updated_at on profile updates.
+drop trigger if exists profiles_touch on public.profiles;
+create trigger profiles_touch
+  before update on public.profiles
+  for each row execute function public.touch_updated_at();
+
+-- addresses — saved delivery addresses. is_default flag per user.
+create table if not exists public.addresses (
+  id           bigserial   primary key,
+  user_id      uuid        not null references auth.users(id) on delete cascade,
+  label        text,
+  line1        text        not null,
+  landmark     text,
+  area         text,
+  pincode      text        not null,
+  is_default   boolean     not null default false,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists addresses_user_idx on public.addresses (user_id, created_at desc);
+
+alter table public.addresses enable row level security;
+
+drop policy if exists "users select own addresses" on public.addresses;
+create policy "users select own addresses"
+  on public.addresses for select to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "users insert own addresses" on public.addresses;
+create policy "users insert own addresses"
+  on public.addresses for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "users update own addresses" on public.addresses;
+create policy "users update own addresses"
+  on public.addresses for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "users delete own addresses" on public.addresses;
+create policy "users delete own addresses"
+  on public.addresses for delete to authenticated
+  using (auth.uid() = user_id);
+
+drop trigger if exists addresses_touch on public.addresses;
+create trigger addresses_touch
+  before update on public.addresses
+  for each row execute function public.touch_updated_at();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Link orders to authed users (nullable — guests still allowed)
+-- ─────────────────────────────────────────────────────────────────────────────
+alter table public.orders
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
+
+create index if not exists orders_user_idx on public.orders (user_id, created_at desc);
+
+-- Customers can read their own orders.
+drop policy if exists "users read own orders" on public.orders;
+create policy "users read own orders"
+  on public.orders for select to authenticated
+  using (user_id = auth.uid());
