@@ -90,13 +90,18 @@ create index if not exists orders_created_at_idx on public.orders (created_at de
 
 alter table public.orders enable row level security;
 
--- Allow anonymous order placement; reads remain locked (owner uses service role).
+-- Allow both guests and signed-in customers to place orders.
+-- Signed-in users must attribute the order to themselves (or leave it null
+-- if they choose to order as a guest while signed in).
 drop policy if exists "anon can insert orders" on public.orders;
-create policy "anon can insert orders"
+drop policy if exists "anyone can insert orders" on public.orders;
+create policy "anyone can insert orders"
   on public.orders
   for insert
-  to anon
-  with check (true);
+  to anon, authenticated
+  with check (
+    user_id is null or user_id = auth.uid()
+  );
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Admin access
