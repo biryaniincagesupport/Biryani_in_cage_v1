@@ -117,8 +117,9 @@ security definer
 set search_path = public
 as $$
   select coalesce(auth.email(), '') in (
-    'mayank29deo@gmail.com'
-    -- 'owner@biryaniincage.com'
+    'mayank29deo@gmail.com',
+    'biryaniincage.support@gmail.com'
+    -- , 'owner@biryaniincage.com'
   );
 $$;
 
